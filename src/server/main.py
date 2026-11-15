@@ -7,6 +7,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import json
 import tarfile
+from dotenv import load_dotenv
+
+load_dotenv() #for local dev
 
 app = fastapi.FastAPI()
 TOKEN: str = os.environ.get("TOKEN", "0")
@@ -25,33 +28,29 @@ def isUserAuthorized(xtoken: str = Header(...)):
 def home(authorization=Depends(isUserAuthorized)):
     return {"message": "Welcome to the server!"}
 
-
-class UploadMetadata(BaseModel):
-    name: str
-    overwrite: bool = False
-
-
 @app.post("/project/new")
 def new(
-    metadata: UploadMetadata = Form(...),
+    name: str = Form(...),
+    overwrite: bool = Form(False),
     upload: UploadFile = File(...),
     authorization=Depends(isUserAuthorized),
 ):
+    destination = os.path.join(PROJECTS_DIR, name)
+    if os.path.exists(destination) and not overwrite:
+        raise fastapi.HTTPException(
+            status_code=400, detail="folder exists use -ow to overwrite"
+        )
+
     async def unzipStream():
         msg = {"status": "GOT ALL FILES", "file": "START", "progress": f"{0}/{"X"}"}
         yield json.dumps(msg) + "\n"
-        destination = os.path.join(PROJECTS_DIR, metadata.name)
-        if os.path.exists(destination) and not metadata.overwrite:
-            raise fastapi.HTTPException(
-                status_code=400, detail="folder exists use -ow to overwrite"
-            )
 
         if not os.path.exists(destination):
-            os.makedirs(os.path.join(PROJECTS_DIR, metadata.name))
+            os.makedirs(os.path.join(PROJECTS_DIR, name))
 
         msg = {"status": "extracting", "file": "START", "progress": f"{0}/{"X"}"}
         yield json.dumps(msg) + "\n"
-        with tarfile.TarFile(fileobj=upload.file, mode="r") as tar:
+        with tarfile.open(fileobj=upload.file, mode="r:*") as tar:
             files = tar.getnames()
             total = len(files)
 

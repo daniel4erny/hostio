@@ -1,0 +1,12 @@
+services:
+  web:
+    build: .
+    container_name: fastapi_app
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    environment:
+      - TOKEN=${TOKEN}
+      - PROJECTS_DIR=/code/projects
+    volumes:
+      - ./projects_data:/code/projects
