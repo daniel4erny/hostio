@@ -2,7 +2,9 @@
 __pycache__/
 *.py[codz]
 *$py.class
-*projects
+# hostio: deployed/uploaded project data (never commit, docker volume or local dev)
+projects/
+projects_data/
 
 # C extensions
 *.so
@@ -16,6 +18,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+# hostio: the client's own package is source, not a build artifact
+!src/client/lib/
 lib64/
 parts/
 sdist/

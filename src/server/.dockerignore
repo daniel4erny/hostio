@@ -3,4 +3,10 @@ venv
 __pycache__
 *.pyc
 .git
+.gitignore
 projects
+projects_data
+.env*
+Dockerfile
+.dockerignore
+docker-compose.yaml

@@ -1,70 +1,118 @@
 # SERVER
+import json
 import os
+import re
+import secrets
+import shutil
+import tarfile
+import tempfile
 
 import fastapi
-from fastapi import Depends, File, Form, Header, UploadFile
+from fastapi import Depends, File, Form, Header, Request, UploadFile
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-import json
-import tarfile
 from dotenv import load_dotenv
 
-load_dotenv() #for local dev
+load_dotenv()  # for local dev
 
-app = fastapi.FastAPI()
 TOKEN: str = os.environ.get("TOKEN", "0")
 if TOKEN == "0":
     raise ValueError("You have to set token first")
-PROJECTS_DIR: str = os.environ.get("PROJECTS_DIR", "projects")
+PROJECTS_DIR: str = os.path.realpath(os.environ.get("PROJECTS_DIR", "projects"))
+MAX_UPLOAD_MB: int = int(os.environ.get("MAX_UPLOAD_MB", "2048"))
+
+TEMP_PREFIX = ".tmp-"
+NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 
 
-def isUserAuthorized(xtoken: str = Header(...)):
-    if xtoken != TOKEN:
+def resolve_project(name: str) -> str:
+    if not NAME_PATTERN.fullmatch(name):
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail=(
+                "invalid project name: use letters, digits, '.', '_' or '-' "
+                "(max 100 chars, must not start with '.')"
+            ),
+        )
+    destination = os.path.realpath(os.path.join(PROJECTS_DIR, name))
+    if os.path.commonpath([destination, PROJECTS_DIR]) != PROJECTS_DIR:
+        raise fastapi.HTTPException(status_code=400, detail="invalid project name")
+    return destination
+
+
+app = fastapi.FastAPI()
+
+
+def isUserAuthorized(xtoken: str | None = Header(None)):
+    if not xtoken or not secrets.compare_digest(xtoken, TOKEN):
         raise fastapi.HTTPException(status_code=401, detail="Unauthorized")
     return True
+
+
+def event(status: str, file: str, index: int, total: int) -> str:
+    return json.dumps(
+        {"status": status, "file": file, "progress": f"{index}/{total}"}
+    ) + "\n"
 
 
 @app.get("/")
 def home(authorization=Depends(isUserAuthorized)):
     return {"message": "Welcome to the server!"}
 
+
 @app.post("/project/new")
 def new(
+    request: Request,
     name: str = Form(...),
     overwrite: bool = Form(False),
     upload: UploadFile = File(...),
     authorization=Depends(isUserAuthorized),
 ):
-    destination = os.path.join(PROJECTS_DIR, name)
-    try:
-        if os.path.exists(destination) and not overwrite:
+    destination = resolve_project(name)
+
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            too_big = int(content_length) > MAX_UPLOAD_MB * 1024 * 1024
+        except ValueError:
+            too_big = True
+        if too_big:
             raise fastapi.HTTPException(
-                status_code=400, detail="folder exists use -ow to overwrite"
+                status_code=413, detail=f"upload exceeds {MAX_UPLOAD_MB} MB"
             )
 
-        async def unzipStream():
-            msg = {"status": "GOT ALL FILES", "file": "START", "progress": f"{0}/{"X"}"}
-            yield json.dumps(msg) + "\n"
+    if os.path.exists(destination) and not overwrite:
+        raise fastapi.HTTPException(
+            status_code=400, detail="folder exists use -ow to overwrite"
+        )
 
-            if not os.path.exists(destination):
-                os.makedirs(os.path.join(PROJECTS_DIR, name))
+    try:
+        tar = tarfile.open(fileobj=upload.file, mode="r:*")
+        members = tar.getmembers()
+    except tarfile.TarError as e:
+        raise fastapi.HTTPException(status_code=400, detail=f"invalid archive: {e}")
 
-            msg = {"status": "extracting", "file": "START", "progress": f"{0}/{"X"}"}
-            yield json.dumps(msg) + "\n"
-            with tarfile.open(fileobj=upload.file, mode="r:*") as tar:
-                files = tar.getnames()
-                total = len(files)
+    os.makedirs(PROJECTS_DIR, exist_ok=True)
+    tmp_dir = tempfile.mkdtemp(prefix=TEMP_PREFIX, dir=PROJECTS_DIR)
 
-                for index, file in enumerate(files, start=1):
-                    tar.extract(file, destination, filter="data")
+    def unzipStream():
+        total = len(members)
 
-                    msg = {"status": "extracting", "file": file, "progress": f"{index}/{total}"}
-                    yield json.dumps(msg) + "\n"
+        try:
+            yield event("extracting", "START", 0, total)
+
+            for index, member in enumerate(members, start=1):
+                tar.extract(member, tmp_dir, filter="data")
+                yield event("extracting", member.name, index, total)
+
+            if os.path.exists(destination):
+                shutil.rmtree(destination)
+            os.replace(tmp_dir, destination)
 
             yield json.dumps({"status": "done", "total_files": total}) + "\n"
+        except Exception as e:
+            yield json.dumps({"status": "error", "detail": str(e)}) + "\n"
+        finally:
+            tar.close()
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
-
-        return StreamingResponse(unzipStream(), media_type="application/x-ndjson")
-    except Exception as e:
-        print(f"Error: {e}")
-        raise fastapi.HTTPException(status_code=500, detail=str(e))
+    return StreamingResponse(unzipStream(), media_type="application/x-ndjson")

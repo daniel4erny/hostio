@@ -48,6 +48,10 @@ def init(
     valid_files = []
     def get_valid_files(base_path: Path, current_path: Path):
         for item in current_path.iterdir():
+            if item.name == ".git":
+                if verbose:
+                    pprint("IGNORING: " + str(item.relative_to(base_path)))
+                continue
             if item.is_dir():
                 get_valid_files(base_path, item)
             else:
@@ -90,11 +94,29 @@ def init(
     )
 
     if response.status_code == 200:
+        errors = 0
+        skipped = 0
         for line in response.iter_lines():
-            if line:
-                print(line.decode("utf-8"))
+            if not line:
+                continue
+            text = line.decode("utf-8")
+            print(text)
+            try:
+                message = json.loads(text)
+            except json.JSONDecodeError:
+                continue
+            if message.get("status") == "error":
+                errors += 1
+            elif message.get("status") == "skipped":
+                skipped += 1
+
+        if skipped:
+            print(f"Warning: server skipped {skipped} file(s), see above")
+        if errors:
+            raise typer.Exit(code=1)
     else:
         print(f"Error: {response.status_code} - {response.text}")
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

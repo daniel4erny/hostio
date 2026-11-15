@@ -1,12 +1,18 @@
 services:
   web:
     build: .
-    container_name: fastapi_app
+    container_name: hostio-server
     restart: unless-stopped
     ports:
-      - "8000:80"
+      - "8000:8000"
     environment:
-      - TOKEN=${TOKEN}
-      - PROJECTS_DIR=/code/projects
+      # fails fast instead of starting a container that crashes on import
+      TOKEN: ${TOKEN:?set TOKEN in src/server/.env or in the environment}
+      PROJECTS_DIR: /code/projects
     volumes:
-      - ./projects_data:/code/projects
+      # named volume keeps the ownership of /code/projects from the image,
+      # so uploaded files are owned by the "hostio" user and not by root
+      - projects_data:/code/projects
+
+volumes:
+  projects_data:
