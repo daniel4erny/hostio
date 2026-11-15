@@ -36,31 +36,35 @@ def new(
     authorization=Depends(isUserAuthorized),
 ):
     destination = os.path.join(PROJECTS_DIR, name)
-    if os.path.exists(destination) and not overwrite:
-        raise fastapi.HTTPException(
-            status_code=400, detail="folder exists use -ow to overwrite"
-        )
+    try:
+        if os.path.exists(destination) and not overwrite:
+            raise fastapi.HTTPException(
+                status_code=400, detail="folder exists use -ow to overwrite"
+            )
 
-    async def unzipStream():
-        msg = {"status": "GOT ALL FILES", "file": "START", "progress": f"{0}/{"X"}"}
-        yield json.dumps(msg) + "\n"
+        async def unzipStream():
+            msg = {"status": "GOT ALL FILES", "file": "START", "progress": f"{0}/{"X"}"}
+            yield json.dumps(msg) + "\n"
 
-        if not os.path.exists(destination):
-            os.makedirs(os.path.join(PROJECTS_DIR, name))
+            if not os.path.exists(destination):
+                os.makedirs(os.path.join(PROJECTS_DIR, name))
 
-        msg = {"status": "extracting", "file": "START", "progress": f"{0}/{"X"}"}
-        yield json.dumps(msg) + "\n"
-        with tarfile.open(fileobj=upload.file, mode="r:*") as tar:
-            files = tar.getnames()
-            total = len(files)
+            msg = {"status": "extracting", "file": "START", "progress": f"{0}/{"X"}"}
+            yield json.dumps(msg) + "\n"
+            with tarfile.open(fileobj=upload.file, mode="r:*") as tar:
+                files = tar.getnames()
+                total = len(files)
 
-            for index, file in enumerate(files, start=1):
-                tar.extract(file, destination, filter="data")
+                for index, file in enumerate(files, start=1):
+                    tar.extract(file, destination, filter="data")
 
-                msg = {"status": "extracting", "file": file, "progress": f"{index}/{total}"}
-                yield json.dumps(msg) + "\n"
+                    msg = {"status": "extracting", "file": file, "progress": f"{index}/{total}"}
+                    yield json.dumps(msg) + "\n"
 
-        yield json.dumps({"status": "done", "total_files": total}) + "\n"
+            yield json.dumps({"status": "done", "total_files": total}) + "\n"
 
 
-    return StreamingResponse(unzipStream(), media_type="application/x-ndjson")
+        return StreamingResponse(unzipStream(), media_type="application/x-ndjson")
+    except Exception as e:
+        print(f"Error: {e}")
+        raise fastapi.HTTPException(status_code=500, detail=str(e))
