@@ -6,6 +6,7 @@ from pathlib import Path
 from pprint import pprint
 import tarfile
 from lib.gitignore import is_gitignored
+import tqdm
 
 import config
 import requests
@@ -46,8 +47,10 @@ def init(
         )
 
     valid_files = []
+    scan_bar = tqdm.tqdm(desc="Scanning files", unit=" entry")
     def get_valid_files(base_path: Path, current_path: Path):
         for item in current_path.iterdir():
+            scan_bar.update(1)
             if item.name == ".git":
                 if verbose:
                     pprint("IGNORING: " + str(item.relative_to(base_path)))
@@ -66,12 +69,12 @@ def init(
                     continue
                 valid_files.append(relative_path)
     get_valid_files(upload_dir, upload_dir)
+    scan_bar.close()
 
     tar_buffer = io.BytesIO()
     with tarfile.open(fileobj=tar_buffer, mode="w:gz") as tar:
-        for index, file in enumerate(valid_files):
+        for file in tqdm.tqdm(valid_files, total=len(valid_files), desc="Compressing files", unit=" file"):
             tar.add(upload_dir / file, arcname=file)
-            pprint("COMPRESSING PROGGRES: " + str(index + 1) + "/" + str(len(valid_files)) + " - " + str(file))
             if verbose:
                 pprint("ADDING: " + str(file))
 
@@ -85,6 +88,7 @@ def init(
     # metadata: UploadMetadata = Form(...),
     # upload: UploadFile = File(...),
     # authorization=Depends(isUserAuthorized),
+    pprint(f"Uploading to {url}")
     response = requests.post(
         url,
         headers=headers,
@@ -96,11 +100,16 @@ def init(
     if response.status_code == 200:
         errors = 0
         skipped = 0
-        for line in response.iter_lines():
+        for line in tqdm.tqdm(
+            response.iter_lines(),
+            total=len(valid_files) + 2,  # server sends START + one line per file + done
+            desc="decompressing on server side",
+            unit=" file",
+        ):
             if not line:
                 continue
             text = line.decode("utf-8")
-            print(text)
+            tqdm.tqdm.write(text)
             try:
                 message = json.loads(text)
             except json.JSONDecodeError:
