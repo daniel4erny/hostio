@@ -6,7 +6,7 @@ from fastapi import Depends, File, Form, Header, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import json
-import zipfile
+import tarfile
 
 app = fastapi.FastAPI()
 TOKEN: str = os.environ.get("TOKEN", "0")
@@ -27,7 +27,7 @@ def home(authorization=Depends(isUserAuthorized)):
 
 
 class UploadMetadata(BaseModel):
-    target_folder: str
+    name: str
     overwrite: bool = False
 
 
@@ -37,24 +37,26 @@ def new(
     upload: UploadFile = File(...),
     authorization=Depends(isUserAuthorized),
 ):
-    destination = os.path.join(PROJECTS_DIR, metadata.target_folder)
-
     async def unzipStream():
+        msg = {"status": "GOT ALL FILES", "file": "START", "progress": f"{0}/{"X"}"}
+        yield json.dumps(msg) + "\n"
+        destination = os.path.join(PROJECTS_DIR, metadata.name)
         if os.path.exists(destination) and not metadata.overwrite:
             raise fastapi.HTTPException(
                 status_code=400, detail="folder exists use -ow to overwrite"
             )
 
         if not os.path.exists(destination):
-            os.makedirs(os.path.join(PROJECTS_DIR, metadata.target_folder))
+            os.makedirs(os.path.join(PROJECTS_DIR, metadata.name))
 
         msg = {"status": "extracting", "file": "START", "progress": f"{0}/{"X"}"}
-        with zipfile.ZipFile(upload.file) as zip_file:
-            files = zip_file.namelist()
+        yield json.dumps(msg) + "\n"
+        with tarfile.TarFile(fileobj=upload.file, mode="r") as tar:
+            files = tar.getnames()
             total = len(files)
 
             for index, file in enumerate(files, start=1):
-                zip_file.extract(file, destination)
+                tar.extract(file, destination, filter="data")
 
                 msg = {"status": "extracting", "file": file, "progress": f"{index}/{total}"}
                 yield json.dumps(msg) + "\n"
