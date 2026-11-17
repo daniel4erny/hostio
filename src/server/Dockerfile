@@ -13,9 +13,9 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 COPY ./ /code/app
 
-# run as an unprivileged user so uploaded projects never land as root on the host
 RUN useradd --create-home --uid 10001 hostio \
     && mkdir -p /code/projects \
+    && mkdir -p /code/database \
     && chown -R hostio:hostio /code
 
 USER hostio

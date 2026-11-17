@@ -5,3 +5,6 @@ okey, I hated coolify and other hosting tools, always seemed unneceseraly bloate
 /src/server is the server side of hostio, it is a web server that allows you to manage your hostio server and deploy your apps to it.
 
 /test a simple bun app to test it - goal is to make working https, subdomain resolver and docker containerization all managed by hostio
+
+# done:
+1. uploading projects

@@ -1,4 +1,5 @@
 # SERVER
+from contextlib import asynccontextmanager
 import json
 import os
 import re
@@ -7,12 +8,12 @@ import shutil
 import tarfile
 import tempfile
 
-from starlette.concurrency import run_in_threadpool
 import fastapi
+from dotenv import load_dotenv
 from fastapi import Depends, File, Form, Header, Request, UploadFile
 from fastapi.responses import StreamingResponse
-from dotenv import load_dotenv
-
+from starlette.concurrency import run_in_threadpool
+from db_lib.db import Database
 
 load_dotenv()  # for local dev
 
@@ -25,6 +26,15 @@ MAX_UPLOAD_MB: int = int(os.environ.get("MAX_UPLOAD_MB", "2048"))
 TEMP_PREFIX = ".tmp-"
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 
+@asynccontextmanager
+async def lifespan(app: fastapi.FastAPI):
+    db = Database()
+    await db.connect()
+    app.state.db = db
+    try:
+        yield
+    finally:
+        await db.close()
 
 def resolve_project(name: str) -> str:
     if not NAME_PATTERN.fullmatch(name):
@@ -41,7 +51,7 @@ def resolve_project(name: str) -> str:
     return destination
 
 
-app = fastapi.FastAPI()
+app = fastapi.FastAPI(lifespan=lifespan)
 
 
 def isUserAuthorized(xtoken: str | None = Header(None)):
@@ -51,9 +61,10 @@ def isUserAuthorized(xtoken: str | None = Header(None)):
 
 
 def event(status: str, file: str, index: int, total: int) -> str:
-    return json.dumps(
-        {"status": status, "file": file, "progress": f"{index}/{total}"}
-    ) + "\n"
+    return (
+        json.dumps({"status": status, "file": file, "progress": f"{index}/{total}"})
+        + "\n"
+    )
 
 
 @app.get("/")

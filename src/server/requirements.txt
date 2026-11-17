@@ -1,3 +1,4 @@
+aiosqlite==0.22.1
 fastapi[standard]==0.163.0
-pydantic==2.14.3
 python-dotenv==1.2.4
+starlette==1.10.0

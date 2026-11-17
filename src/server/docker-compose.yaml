@@ -8,11 +8,12 @@ services:
     environment:
       # fails fast instead of starting a container that crashes on import
       TOKEN: ${TOKEN:?set TOKEN in src/server/.env or in the environment}
+      DB_PATH: /code/database/hostio.db
       PROJECTS_DIR: /code/projects
     volumes:
-      # named volume keeps the ownership of /code/projects from the image,
-      # so uploaded files are owned by the "hostio" user and not by root
       - projects_data:/code/projects
+      - database_data:/code/database
 
 volumes:
   projects_data:
+  database_data:
