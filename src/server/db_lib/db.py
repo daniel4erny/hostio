@@ -12,7 +12,7 @@ MIGRATIONS = {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         name TEXT UNIQUE NOT NULL,
         path TEXT NOT NULL,
-        status TEXT NOT NULL default 'not_built',
+        status TEXT NOT NULL default 'not_built'
     )
     """,
 }
@@ -50,7 +50,7 @@ class Database:
                     await cursor.execute(f"PRAGMA user_version = {version}")
             except Exception as e:
                 await self.connection.rollback()
-                raise e
+                raise
 
             await self.connection.commit()
 
@@ -64,3 +64,22 @@ class Database:
                     "INSERT INTO projects (name, path) VALUES (?, ?)", (name, path)
                 )
                 await self.connection.commit()
+
+    async def listProjects(self):
+        if type(self.connection) is not aiosqlite.Connection:
+            raise ValueError("Database connection is not established")
+
+        async with self._lock:
+            async with self.connection.cursor() as cursor:
+                await cursor.execute("SELECT id, created_at, name, path, status FROM projects")
+                rows = await cursor.fetchall()
+                return [
+                    {
+                        "id": row[0],
+                        "created_at": row[1],
+                        "name": row[2],
+                        "path": row[3],
+                        "status": row[4],
+                    }
+                    for row in rows
+                ]
