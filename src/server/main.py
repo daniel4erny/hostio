@@ -21,6 +21,8 @@ TOKEN: str = os.environ.get("TOKEN", "0")
 if TOKEN == "0":
     raise ValueError("You have to set token first")
 PROJECTS_DIR: str = os.path.realpath(os.environ.get("PROJECTS_DIR", "projects"))
+os.makedirs(PROJECTS_DIR, exist_ok=True)
+
 MAX_UPLOAD_MB: int = int(os.environ.get("MAX_UPLOAD_MB", "2048"))
 
 TEMP_PREFIX = ".tmp-"

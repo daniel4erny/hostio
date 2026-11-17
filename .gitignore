@@ -6,6 +6,7 @@ __pycache__/
 # hostio: deployed/uploaded project data (never commit, docker volume or local dev)
 projects/
 projects_data/
+data/
 
 # C extensions
 *.so
