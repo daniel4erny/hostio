@@ -70,12 +70,14 @@ def event(status: str, file: str, index: int, total: int) -> str:
     )
 
 
-@app.get("/")
-def home(authorization=Depends(isUserAuthorized)):
-    return {"message": "Welcome to the server!"}
+@app.get("/projects/list")
+async def home(authorization=Depends(isUserAuthorized)):
+    if type(app.state.db) is not Database:
+        raise fastapi.HTTPException(status_code=500, detail="Database error")
+    return await app.state.db.listProjects()
 
 
-@app.post("/project/new")
+@app.post("/projects/new")
 async def new(
     request: Request,
     name: str = Form(...),

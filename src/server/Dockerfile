@@ -22,7 +22,4 @@ USER hostio
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD python -c "import os, urllib.request as u; u.urlopen(u.Request('http://127.0.0.1:8000/', headers={'xtoken': os.environ.get('TOKEN', '')}), timeout=3)"
-
 CMD ["fastapi", "run", "app/main.py", "--host", "0.0.0.0", "--port", "8000"]

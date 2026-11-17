@@ -2,20 +2,20 @@
 import io
 import json
 import os
+import tarfile
 from pathlib import Path
 from pprint import pprint
-import tarfile
-from lib.gitignore import is_gitignored
-import tqdm
 
 import config
 import requests
+import tqdm
 import typer
+from lib.gitignore import is_gitignored
+from lib.pprint_projects import pprint_projects
 
 app = typer.Typer()
 app.add_typer(config.app, name="config", help="Hostio config commands")
 conf = config.HostioConfig()
-
 
 
 @app.command("init", help="init a project - folder copy via tar.gz to server")
@@ -29,7 +29,10 @@ def init(
         False, "--ignoregit", "-ig", help="If set, will ignore files in .gitignore"
     ),
     pushenv: bool = typer.Option(
-        False, "--pushenv", "-pe", help="If set, will push .env file to server (will always even if gitignored)"
+        False,
+        "--pushenv",
+        "-pe",
+        help="If set, will push .env file to server (will always even if gitignored)",
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
@@ -52,6 +55,7 @@ def init(
 
     valid_files = []
     scan_bar = tqdm.tqdm(desc="Scanning files", unit=" entry")
+
     def get_valid_files(base_path: Path, current_path: Path):
         for item in current_path.iterdir():
             scan_bar.update(1)
@@ -72,12 +76,15 @@ def init(
                         pprint("IGNORING: " + str(relative_path))
                     continue
                 valid_files.append(relative_path)
+
     get_valid_files(upload_dir, upload_dir)
     scan_bar.close()
 
     tar_buffer = io.BytesIO()
     with tarfile.open(fileobj=tar_buffer, mode="w:gz") as tar:
-        for file in tqdm.tqdm(valid_files, total=len(valid_files), desc="Compressing files", unit=" file"):
+        for file in tqdm.tqdm(
+            valid_files, total=len(valid_files), desc="Compressing files", unit=" file"
+        ):
             tar.add(upload_dir / file, arcname=file)
             if verbose:
                 pprint("ADDING: " + str(file))
@@ -85,7 +92,7 @@ def init(
     tar_buffer.seek(0)
 
     headers = {"xtoken": conf.getValue("TOKEN")}
-    url = conf.getValue("URL") + "/project/new"
+    url = conf.getValue("URL") + "/projects/new"
     metadata = {"name": target_folder, "overwrite": overwrite}
     files = {"upload": ("upload.tar.gz", tar_buffer, "application/gzip")}
 
@@ -128,6 +135,20 @@ def init(
             print(f"Warning: server skipped {skipped} file(s), see above")
         if errors:
             raise typer.Exit(code=1)
+    else:
+        print(f"Error: {response.status_code} - {response.text}")
+        raise typer.Exit(code=1)
+
+
+@app.command("list", help="list projects on server")
+def list_projects():
+    headers = {"xtoken": conf.getValue("TOKEN")}
+    url = conf.getValue("URL") + "/projects/list"
+    pprint(f"Fetching projects from {url}")
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        projects = response.json()
+        pprint_projects(projects)
     else:
         print(f"Error: {response.status_code} - {response.text}")
         raise typer.Exit(code=1)
