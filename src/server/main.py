@@ -7,6 +7,7 @@ import secrets
 import shutil
 import tarfile
 import tempfile
+import asyncio
 
 import fastapi
 from dotenv import load_dotenv
@@ -31,7 +32,7 @@ NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
     db = Database()
-    await db.connect()
+    await db.init()
     app.state.db = db
     try:
         yield
@@ -113,19 +114,25 @@ async def new(
     os.makedirs(PROJECTS_DIR, exist_ok=True)
     tmp_dir = tempfile.mkdtemp(prefix=TEMP_PREFIX, dir=PROJECTS_DIR)
 
-    def unzipStream():
+    async def unzipStream():
         total = len(members)
 
         try:
             yield event("extracting", "START", 0, total)
 
             for index, member in enumerate(members, start=1):
-                tar.extract(member, tmp_dir, filter="data")
+                await asyncio.to_thread(tar.extract, member, tmp_dir, filter="data")
                 yield event("extracting", member.name, index, total)
 
             if os.path.exists(destination):
                 shutil.rmtree(destination)
             os.replace(tmp_dir, destination)
+
+            if type(request.app) is not fastapi.FastAPI:
+                raise ValueError("tf lol")
+
+            db = request.app.state.db
+            await db.initProject(name, destination)
 
             yield json.dumps({"status": "done", "total_files": total}) + "\n"
         except Exception as e:
