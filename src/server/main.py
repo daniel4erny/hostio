@@ -7,10 +7,12 @@ import shutil
 import tarfile
 import tempfile
 
+from starlette.concurrency import run_in_threadpool
 import fastapi
 from fastapi import Depends, File, Form, Header, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
+
 
 load_dotenv()  # for local dev
 
@@ -60,7 +62,7 @@ def home(authorization=Depends(isUserAuthorized)):
 
 
 @app.post("/project/new")
-def new(
+async def new(
     request: Request,
     name: str = Form(...),
     overwrite: bool = Form(False),
@@ -85,11 +87,15 @@ def new(
             status_code=400, detail="folder exists use -ow to overwrite"
         )
 
-    try:
-        tar = tarfile.open(fileobj=upload.file, mode="r:*")
-        members = tar.getmembers()
-    except tarfile.TarError as e:
-        raise fastapi.HTTPException(status_code=400, detail=f"invalid archive: {e}")
+    def openTar(file, mode):
+        try:
+            tar = tarfile.open(fileobj=file, mode=mode)
+            members = tar.getmembers()
+            return (members, tar)
+        except tarfile.TarError as e:
+            raise fastapi.HTTPException(status_code=400, detail=f"invalid archive: {e}")
+
+    members, tar = await run_in_threadpool(openTar, upload.file, "r:*")
 
     os.makedirs(PROJECTS_DIR, exist_ok=True)
     tmp_dir = tempfile.mkdtemp(prefix=TEMP_PREFIX, dir=PROJECTS_DIR)

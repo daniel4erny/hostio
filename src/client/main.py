@@ -25,14 +25,18 @@ def init(
     overwrite: bool = typer.Option(
         False, "--overwrite", "-ow", help="If folder exists, you can rewrite it"
     ),
-    gitignore: bool = typer.Option(
-        False, "--gitignore", "-gi", help="If set, will ignore files in .gitignore"
+    ignoregit: bool = typer.Option(
+        False, "--ignoregit", "-ig", help="If set, will ignore files in .gitignore"
     ),
     pushenv: bool = typer.Option(
         False, "--pushenv", "-pe", help="If set, will push .env file to server (will always even if gitignored)"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
+    if ignoregit:
+        pprint("pushnig gitignored files")
+    if pushenv:
+        pprint("pushing .env files")
     # 1 compress uzing tar.gz
     current_dir = Path(os.getcwd())
     upload_dir = current_dir / Path(folder_path)
@@ -59,7 +63,7 @@ def init(
                 get_valid_files(base_path, item)
             else:
                 relative_path = item.relative_to(base_path)
-                if gitignore and is_gitignored(base_path, relative_path):
+                if not ignoregit and is_gitignored(base_path, relative_path):
                     if verbose:
                         pprint("IGNORING: " + str(relative_path))
                     continue
@@ -109,7 +113,8 @@ def init(
             if not line:
                 continue
             text = line.decode("utf-8")
-            tqdm.tqdm.write(text)
+            if verbose:
+                tqdm.tqdm.write(text)
             try:
                 message = json.loads(text)
             except json.JSONDecodeError:
