@@ -8,6 +8,7 @@ import shutil
 import tarfile
 import tempfile
 import asyncio
+import aiodocker
 
 import fastapi
 from dotenv import load_dotenv
@@ -144,3 +145,13 @@ async def new(
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
     return StreamingResponse(unzipStream(), media_type="application/x-ndjson")
+
+#THIS USES DOCKER DOWN BELOW
+@app.get("/docker/check")
+async def check_docker(authorization=Depends(isUserAuthorized)):
+    docker = aiodocker.Docker()
+    try:
+        version = await docker.version()
+        return {"status": "ok", "version": version}
+    except Exception as e:
+        raise fastapi.HTTPException(status_code=500, detail=f"Docker error: {e}")

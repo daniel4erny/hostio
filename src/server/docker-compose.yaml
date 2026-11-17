@@ -13,6 +13,9 @@ services:
     volumes:
       - projects_data:/code/projects
       - database_data:/code/database
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID}"
 
 volumes:
   projects_data:
