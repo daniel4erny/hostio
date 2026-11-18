@@ -1,12 +1,12 @@
 import os
-import aiosqlite
 from asyncio import Lock
+
+import aiosqlite
 
 DB_PATH = os.path.realpath(os.environ.get("DB_PATH", "data/hostio.db"))
 
 MIGRATIONS = {
-    1:
-    """
+    1: """
     CREATE TABLE IF NOT EXISTS projects (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -16,6 +16,7 @@ MIGRATIONS = {
     )
     """,
 }
+
 
 class Database:
     def __init__(self):
@@ -71,7 +72,9 @@ class Database:
 
         async with self._lock:
             async with self.connection.cursor() as cursor:
-                await cursor.execute("SELECT id, created_at, name, path, status FROM projects")
+                await cursor.execute(
+                    "SELECT id, created_at, name, path, status FROM projects"
+                )
                 rows = await cursor.fetchall()
                 return [
                     {
@@ -90,6 +93,24 @@ class Database:
 
         async with self._lock:
             async with self.connection.cursor() as cursor:
-                await cursor.execute("SELECT path FROM projects WHERE (?) = name", (name,))
+                await cursor.execute(
+                    "SELECT path FROM projects WHERE (?) = name", (name,)
+                )
+                row = await cursor.fetchone()
+                return row
+
+    async def changeStatusByName(self, name: str, status: str):
+        if type(self.connection) is not aiosqlite.Connection:
+            raise ValueError("Database connection is not established")
+
+        async with self._lock:
+            async with self.connection.cursor() as cursor:
+                await cursor.execute(
+                    "UPDATE projects SET status = (?) WHERE (?) = name RETURNING id, name, status",
+                    (
+                        status,
+                        name,
+                    ),
+                )
                 row = await cursor.fetchone()
                 return row

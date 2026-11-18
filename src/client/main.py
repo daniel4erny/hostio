@@ -179,6 +179,7 @@ def buildProjects(
         url,
         headers=headers,
         data=metadata,
+        stream=True,
     )
 
     print(response.json())

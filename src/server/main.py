@@ -175,5 +175,10 @@ async def build_docker(
         raise fastapi.HTTPException(status_code=500, detail="Database error")
     path = await request.app.state.db.getPathByName(name)
     if not path:
-        return fastapi.HTTPException(status_code=404, detail="not found")
-    return path
+        raise fastapi.HTTPException(status_code=404, detail="not found")
+    status = await request.app.state.db.changeStatusByName(name, "building")
+
+    async def buildGenerator():
+        yield json.dumps([path, status])
+
+    return StreamingResponse(buildGenerator(), media_type="application/x-ndjson")
