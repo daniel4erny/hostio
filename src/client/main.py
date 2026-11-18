@@ -190,13 +190,15 @@ def buildProjects(
     )
     isfirst = True
     for line in response.iter_lines():
-        if isfirst:
-            path, status = json.loads(line)
-            pprint(f'PATH TO PROJECT ON SERVER: {path[0]}')
-            #first is ID
-            pprint(f'STATUS: {" ".join([str(log) for log in status])}')
-            isfirst = False
-            continue
+        # if isfirst:
+        #     path, status = json.loads(line)
+        #     pprint(f'PATH TO PROJECT ON SERVER: {path[0]}')
+        #     #first is ID
+        #     pprint(f'STATUS: {" ".join([str(log) for log in status])}')
+        #     isfirst = False
+        #     continue
+        print(json.loads(line))
+
 
 
 if __name__ == "__main__":

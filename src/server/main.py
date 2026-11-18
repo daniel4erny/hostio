@@ -151,11 +151,14 @@ async def new(
 
 # THIS USES DOCKER DOWN BELOW
 @app.get("/docker/check")
-async def check_docker(authorization=Depends(isUserAuthorized)):
-    docker = aiodocker.Docker()
+async def check_docker():
     try:
-        version = await docker.version()
+        proc = await asyncio.create_subprocess_exec("docker compose version", stderr=asyncio.subprocess.PIPE)
+        rc = proc.wait()
+        assert rc == 0
+        version = proc.stderr
         return {"status": "ok", "version": version}
+
     except Exception as e:
         raise fastapi.HTTPException(status_code=500, detail=f"Docker error: {e}")
 
