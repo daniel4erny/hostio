@@ -182,25 +182,27 @@ async def build_docker(
     # print(status)
 
     async def buildGenerator():
-        yield json.dumps([path, status])
-        proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
-            "--progress",
-            "plainup",
-            "--ansi",
-            "never",
-            "-d",
-            "--build",
-            cwd=path[0],
-            stderr=asyncio.subprocess.PIPE,
-        )
+        try:
+            yield json.dumps([path, status])
+            proc = await asyncio.create_subprocess_exec(
+                "docker",
+                "compose",
+                "--progress",
+                "plainup",
+                "--ansi",
+                "never",
+                "-d",
+                "--build",
+                cwd=path[0],
+                stderr=asyncio.subprocess.PIPE,
+            )
 
-        assert proc.stderr is not None
+            assert proc.stderr is not None
 
-        async for line in proc.stderr:
-            yield json.dumps(f"{line.decode().strip()}\n")
+            async for line in proc.stderr:
+                yield json.dumps(f"{line.decode().strip()}\n")
 
-        rc = await proc.wait()
-
+            rc = await proc.wait()
+        except Exception as e:
+            raise
     return StreamingResponse(buildGenerator(), media_type="application/x-ndjson")
