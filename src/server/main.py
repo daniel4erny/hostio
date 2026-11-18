@@ -1,5 +1,5 @@
 # SERVER
-from contextlib import asynccontextmanager
+import asyncio
 import json
 import os
 import re
@@ -7,15 +7,15 @@ import secrets
 import shutil
 import tarfile
 import tempfile
-import asyncio
-import aiodocker
+from contextlib import asynccontextmanager
 
+import aiodocker
 import fastapi
+from db_lib.db import Database
 from dotenv import load_dotenv
 from fastapi import Depends, File, Form, Header, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
-from db_lib.db import Database
 
 load_dotenv()  # for local dev
 
@@ -30,6 +30,7 @@ MAX_UPLOAD_MB: int = int(os.environ.get("MAX_UPLOAD_MB", "2048"))
 TEMP_PREFIX = ".tmp-"
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 
+
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
     db = Database()
@@ -39,6 +40,7 @@ async def lifespan(app: fastapi.FastAPI):
         yield
     finally:
         await db.close()
+
 
 def resolve_project(name: str) -> str:
     if not NAME_PATTERN.fullmatch(name):
@@ -146,7 +148,8 @@ async def new(
 
     return StreamingResponse(unzipStream(), media_type="application/x-ndjson")
 
-#THIS USES DOCKER DOWN BELOW
+
+# THIS USES DOCKER DOWN BELOW
 @app.get("/docker/check")
 async def check_docker(authorization=Depends(isUserAuthorized)):
     docker = aiodocker.Docker()
@@ -155,3 +158,22 @@ async def check_docker(authorization=Depends(isUserAuthorized)):
         return {"status": "ok", "version": version}
     except Exception as e:
         raise fastapi.HTTPException(status_code=500, detail=f"Docker error: {e}")
+
+
+@app.post("/docker/build")
+async def build_docker(
+    request: Request, name: str = Form(...), authorization=Depends(isUserAuthorized)
+):
+    # Just check the docker again to be sure
+    docker = aiodocker.Docker()
+    try:
+        version = await docker.version()
+    except Exception as e:
+        raise fastapi.HTTPException(status_code=500, detail=f"Docker error: {e}")
+
+    if type(request.app.state.db) is not Database:
+        raise fastapi.HTTPException(status_code=500, detail="Database error")
+    path = await request.app.state.db.getPathByName(name)
+    if not path:
+        return fastapi.HTTPException(status_code=404, detail="not found")
+    return path

@@ -83,3 +83,13 @@ class Database:
                     }
                     for row in rows
                 ]
+
+    async def getPathByName(self, name):
+        if type(self.connection) is not aiosqlite.Connection:
+            raise ValueError("Database connection is not established")
+
+        async with self._lock:
+            async with self.connection.cursor() as cursor:
+                await cursor.execute("SELECT path FROM projects WHERE (?) = name", (name,))
+                row = await cursor.fetchone()
+                return row
