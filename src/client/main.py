@@ -10,9 +10,9 @@ import config
 import requests
 import tqdm
 import typer
-from typer_alias import command
 from lib.gitignore import is_gitignored
 from lib.pprint_projects import pprint_projects
+from typer_alias import command
 
 app = typer.Typer()
 app.add_typer(config.app, name="config", help="Hostio config commands")
@@ -149,7 +149,9 @@ def list_projects():
     try:
         response = requests.get(url, headers=headers)
     except Exception as e:
-        raise ValueError(f"{e} \n\n Perhaps you dont have config set up, use hostio config")
+        raise ValueError(
+            f"{e} \n\n Perhaps you dont have config set up, use hostio config"
+        )
     if response.status_code == 200:
         projects = response.json()
         pprint_projects(projects)
@@ -157,18 +159,23 @@ def list_projects():
         print(f"Error: {response.status_code} - {response.text}")
         raise typer.Exit(code=1)
 
+
 def b_system_callback(value: str):
     AVAILABLE = ["docker-compose"]
     if value not in AVAILABLE:
         raise typer.BadParameter(f"Only {AVAILABLE} is allowed")
     return value
 
+
 @command(app, name="build", aliases=["b"], help="build docker container")
 def buildProjects(
     name=typer.Argument(..., help="name of the project"),
-    type=typer.Argument(..., help="type of build system (currently only docker compose", callback=b_system_callback)
+    type=typer.Argument(
+        ...,
+        help="type of build system (currently only docker compose",
+        callback=b_system_callback,
+    ),
 ):
-
 
     headers = {"xtoken": conf.getValue("TOKEN")}
     url = conf.getValue("URL") + "/docker/build"
@@ -182,7 +189,9 @@ def buildProjects(
         stream=True,
     )
 
-    print(response.json())
+    for line in response.iter_lines():
+        print(line)
+
 
 if __name__ == "__main__":
     app()

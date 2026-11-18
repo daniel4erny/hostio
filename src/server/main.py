@@ -177,6 +177,7 @@ async def build_docker(
     if not path:
         raise fastapi.HTTPException(status_code=404, detail="not found")
     status = await request.app.state.db.changeStatusByName(name, "building")
+    print(status)
 
     async def buildGenerator():
         yield json.dumps([path, status])
