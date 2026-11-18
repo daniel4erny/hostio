@@ -157,6 +157,31 @@ def list_projects():
         print(f"Error: {response.status_code} - {response.text}")
         raise typer.Exit(code=1)
 
+def b_system_callback(value: str):
+    AVAILABLE = ["docker-compose"]
+    if value not in AVAILABLE:
+        raise typer.BadParameter(f"Only {AVAILABLE} is allowed")
+    return value
+
+@command(app, name="build", aliases=["b"], help="build docker container")
+def buildProjects(
+    name=typer.Argument(..., help="name of the project"),
+    type=typer.Argument(..., help="type of build system (currently only docker compose", callback=b_system_callback)
+):
+
+
+    headers = {"xtoken": conf.getValue("TOKEN")}
+    url = conf.getValue("URL") + "/docker/build"
+    metadata = {"name": name}
+
+    pprint(f"Uploading to {url}")
+    response = requests.post(
+        url,
+        headers=headers,
+        data=metadata,
+    )
+
+    print(response.json())
 
 if __name__ == "__main__":
     app()
