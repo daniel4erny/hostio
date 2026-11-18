@@ -1,0 +1,4 @@
+colorama==0.4.6
+Requests==2.34.2
+tqdm==4.70.1
+typer==0.29.1

@@ -10,6 +10,7 @@ import config
 import requests
 import tqdm
 import typer
+from typer_alias import command
 from lib.gitignore import is_gitignored
 from lib.pprint_projects import pprint_projects
 
@@ -18,7 +19,7 @@ app.add_typer(config.app, name="config", help="Hostio config commands")
 conf = config.HostioConfig()
 
 
-@app.command("init", help="init a project - folder copy via tar.gz to server")
+@command(app, name="init", help="init a project - folder copy via tar.gz to server")
 def init(
     folder_path: str = typer.Argument(..., help="Path to the folder to send to server"),
     target_folder: str = typer.Argument(..., help="Target folder name on the server"),
@@ -140,12 +141,15 @@ def init(
         raise typer.Exit(code=1)
 
 
-@app.command("list", help="list projects on server")
+@command(app, name="list", aliases=["ls", "l"], help="list projects on server")
 def list_projects():
     headers = {"xtoken": conf.getValue("TOKEN")}
     url = conf.getValue("URL") + "/projects/list"
     pprint(f"Fetching projects from {url}")
-    response = requests.get(url, headers=headers)
+    try:
+        response = requests.get(url, headers=headers)
+    except Exception as e:
+        raise ValueError(f"{e} \n\n Perhaps you dont have config set up, use hostio config")
     if response.status_code == 200:
         projects = response.json()
         pprint_projects(projects)
