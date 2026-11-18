@@ -168,7 +168,9 @@ async def build_docker(
     docker = aiodocker.Docker()
     try:
         version = await docker.version()
+        await docker.close()
     except Exception as e:
+        await docker.close()
         raise fastapi.HTTPException(status_code=500, detail=f"Docker error: {e}")
 
     if type(request.app.state.db) is not Database:
@@ -177,9 +179,28 @@ async def build_docker(
     if not path:
         raise fastapi.HTTPException(status_code=404, detail="not found")
     status = await request.app.state.db.changeStatusByName(name, "building")
-    print(status)
+    # print(status)
 
     async def buildGenerator():
         yield json.dumps([path, status])
+        proc = await asyncio.create_subprocess_exec(
+            "docker",
+            "compose",
+            "--progress",
+            "plainup",
+            "--ansi",
+            "never",
+            "-d",
+            "--build",
+            cwd=path[0],
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        assert proc.stderr is not None
+
+        async for line in proc.stderr:
+            yield json.dumps(f"{line.decode().strip()}\n")
+
+        rc = await proc.wait()
 
     return StreamingResponse(buildGenerator(), media_type="application/x-ndjson")

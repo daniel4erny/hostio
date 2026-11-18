@@ -181,16 +181,22 @@ def buildProjects(
     url = conf.getValue("URL") + "/docker/build"
     metadata = {"name": name}
 
-    pprint(f"Uploading to {url}")
+    pprint(f'Uploading to {url}')
     response = requests.post(
         url,
         headers=headers,
         data=metadata,
         stream=True,
     )
-
+    isfirst = True
     for line in response.iter_lines():
-        print(line)
+        if isfirst:
+            path, status = json.loads(line)
+            pprint(f'PATH TO PROJECT ON SERVER: {path[0]}')
+            #first is ID
+            pprint(f'STATUS: {" ".join([str(log) for log in status])}')
+            isfirst = False
+            continue
 
 
 if __name__ == "__main__":
