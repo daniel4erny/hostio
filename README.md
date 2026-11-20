@@ -9,3 +9,5 @@ okey, I hated coolify and other hosting tools, always seemed unneceseraly bloate
 # done:
 1. uploading projects
 2. listing projects
+
+ docker compose --progress plainup --ansi never -d --build
