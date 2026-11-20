@@ -194,6 +194,7 @@ async def build_docker(
                 "json",
                 "--ansi",
                 "never",
+                "up",
                 "--build",
                 cwd=path[0],
                 stderr=asyncio.subprocess.PIPE,

@@ -188,16 +188,18 @@ def buildProjects(
         data=metadata,
         stream=True,
     )
-    isfirst = True
+    if response.status_code != 200:
+        print(f"Error: {response.status_code} - {response.text}")
+        raise typer.Exit(code=1)
+
     for line in response.iter_lines():
-        # if isfirst:
-        #     path, status = json.loads(line)
-        #     pprint(f'PATH TO PROJECT ON SERVER: {path[0]}')
-        #     #first is ID
-        #     pprint(f'STATUS: {" ".join([str(log) for log in status])}')
-        #     isfirst = False
-        #     continue
-        print(json.loads(line))
+        if not line:
+            continue
+        text = line.decode("utf-8", errors="replace")
+        try:
+            print(json.loads(text))
+        except json.JSONDecodeError:
+            print(text)
 
 
 
