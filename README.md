@@ -10,4 +10,9 @@ okey, I hated coolify and other hosting tools, always seemed unneceseraly bloate
 1. uploading projects
 2. listing projects
 
+# fuck me:
+1. So my stupid head thought it would be epic to make the things like super easy to use docker compose only - project equals resource which is one docker compose, but now I wanna add support for infra of type like next.js + postgres lol
+2. My plan is as follows - since I have managed to make the compose working (I just realized I have to merge the branches now since I didnt pull it gg) I will now do the reverse proxy thingy - https + dns resolver in golang, only after that I will add the project:resources based type of hosting - btw you should only need docker.
+3. [KIRI](https://runkiri.com/) SUPPORT
+
  docker compose --progress json --ansi never up --build
