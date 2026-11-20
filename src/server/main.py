@@ -196,6 +196,7 @@ async def build_docker(
                 "never",
                 "up",
                 "--build",
+                "--detach",
                 cwd=path[0],
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
