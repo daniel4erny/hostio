@@ -10,4 +10,4 @@ okey, I hated coolify and other hosting tools, always seemed unneceseraly bloate
 1. uploading projects
 2. listing projects
 
- docker compose --progress plainup --ansi never -d --build
+ docker compose --progress json --ansi never up --build

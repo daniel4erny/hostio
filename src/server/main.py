@@ -186,7 +186,7 @@ async def build_docker(
 
     async def buildGenerator():
         try:
-            yield json.dumps([path, status])
+            yield json.dumps([path, status]) + "\n"
             proc = await asyncio.create_subprocess_exec(
                 "docker",
                 "compose",
@@ -197,12 +197,14 @@ async def build_docker(
                 "up",
                 "--build",
                 cwd=path[0],
-                stderr=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
             )
 
-            assert proc.stderr is not None
+            assert proc.stdout is not None
 
-            async for line in proc.stderr:
+            async for raw in proc.stdout:
+                line = raw.decode("utf-8", errors="replace").rstrip("\n")
                 yield json.dumps({"type": "log", "line": line}, ensure_ascii=False) + "\n"
 
             rc = await proc.wait()
