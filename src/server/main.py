@@ -203,9 +203,13 @@ async def build_docker(
             assert proc.stderr is not None
 
             async for line in proc.stderr:
-                yield json.dumps(f"{line.decode().strip()}\n")
+                yield json.dumps({"type": "log", "line": line}, ensure_ascii=False) + "\n"
 
             rc = await proc.wait()
+
+            yield json.dumps({"type": "exit", "returncode": rc}, ensure_ascii=False) + "\n"
+
         except Exception as e:
+            yield json.dumps({"type": "exit", "returncode": 6767}, ensure_ascii=False) + "\n"
             raise
     return StreamingResponse(buildGenerator(), media_type="application/x-ndjson")
