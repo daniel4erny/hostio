@@ -1,6 +1,6 @@
 services:
   web:
-    build: .
+    build: ./backend
     container_name: hostio-server
     restart: unless-stopped
     ports:
@@ -13,10 +13,27 @@ services:
     volumes:
       - projects_data:/code/projects
       - database_data:/code/database
+      - caddy_sites:/code/caddy_sites
       - /var/run/docker.sock:/var/run/docker.sock
     group_add:
       - "${DOCKER_GID}"
 
+    caddy:
+    image: caddy:2
+    container_name: hostio-caddy
+    restart: unless-stopped
+    ports:
+        - "80:80"
+        - "443:443"
+        - "443:443/udp"
+    volumes:
+        - ./Caddyfile:/etc/caddy/Caddyfile:ro
+        - caddy_sites:/etc/caddy/sites
+        - caddy_data:/data
+    networks: [proxy]
+
 volumes:
   projects_data:
   database_data:
+  caddy_data:
+  caddy_sites:
